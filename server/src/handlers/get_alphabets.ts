@@ -1,9 +1,17 @@
 
+import { db } from '../db';
+import { alphabetsTable } from '../db/schema';
 import { type Alphabet } from '../schema';
 
-export async function getAlphabets(): Promise<Alphabet[]> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching all available alphabets from the database.
-    // Should return all alphabets with their basic information for the alphabet selection screen.
-    return [];
-}
+export const getAlphabets = async (): Promise<Alphabet[]> => {
+  try {
+    const results = await db.select()
+      .from(alphabetsTable)
+      .execute();
+
+    return results;
+  } catch (error) {
+    console.error('Failed to fetch alphabets:', error);
+    throw error;
+  }
+};
