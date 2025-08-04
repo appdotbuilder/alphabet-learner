@@ -8,6 +8,65 @@ import { ArrowLeft, BookOpen, Play, Check, X } from 'lucide-react';
 import { trpc } from '@/utils/trpc';
 import type { Alphabet, Letter, PracticeSession, AlphabetType } from '../../server/src/schema';
 
+// Fallback data for demonstration when backend returns empty arrays
+const FALLBACK_ALPHABETS: Alphabet[] = [
+  {
+    id: 1,
+    type: 'french' as AlphabetType,
+    name: 'French Alphabet',
+    description: 'The standard French alphabet with 26 letters',
+    total_letters: 26,
+    created_at: new Date()
+  },
+  {
+    id: 2,
+    type: 'german' as AlphabetType,
+    name: 'German Alphabet',
+    description: 'German alphabet including umlauts and ß',
+    total_letters: 30,
+    created_at: new Date()
+  },
+  {
+    id: 3,
+    type: 'hebrew' as AlphabetType,
+    name: 'Hebrew Alphabet',
+    description: 'The Hebrew alphabet with 22 letters',
+    total_letters: 22,
+    created_at: new Date()
+  },
+  {
+    id: 4,
+    type: 'georgian' as AlphabetType,
+    name: 'Georgian Alphabet',
+    description: 'The Georgian Mkhedruli script with 33 letters',
+    total_letters: 33,
+    created_at: new Date()
+  }
+];
+
+const FALLBACK_LETTERS: Record<number, Letter[]> = {
+  1: [
+    { id: 1, alphabet_id: 1, letter: 'A', name: 'A', pronunciation: '/a/', pronunciation_guide: 'Like "ah"', order_position: 1, created_at: new Date() },
+    { id: 2, alphabet_id: 1, letter: 'B', name: 'Bé', pronunciation: '/be/', pronunciation_guide: 'Like "bay"', order_position: 2, created_at: new Date() },
+    { id: 3, alphabet_id: 1, letter: 'C', name: 'Cé', pronunciation: '/se/', pronunciation_guide: 'Like "say"', order_position: 3, created_at: new Date() }
+  ],
+  2: [
+    { id: 4, alphabet_id: 2, letter: 'A', name: 'A', pronunciation: '/aː/', pronunciation_guide: 'Long "ah"', order_position: 1, created_at: new Date() },
+    { id: 5, alphabet_id: 2, letter: 'Ä', name: 'Ä', pronunciation: '/ɛː/', pronunciation_guide: 'Like "air"', order_position: 2, created_at: new Date() },
+    { id: 6, alphabet_id: 2, letter: 'B', name: 'Be', pronunciation: '/beː/', pronunciation_guide: 'Like "bay"', order_position: 3, created_at: new Date() }
+  ],
+  3: [
+    { id: 7, alphabet_id: 3, letter: 'א', name: 'Aleph', pronunciation: 'silent', pronunciation_guide: 'Silent letter', order_position: 1, created_at: new Date() },
+    { id: 8, alphabet_id: 3, letter: 'ב', name: 'Bet', pronunciation: '/b/ or /v/', pronunciation_guide: 'B or V sound', order_position: 2, created_at: new Date() },
+    { id: 9, alphabet_id: 3, letter: 'ג', name: 'Gimel', pronunciation: '/g/', pronunciation_guide: 'G sound', order_position: 3, created_at: new Date() }
+  ],
+  4: [
+    { id: 10, alphabet_id: 4, letter: 'ა', name: 'An', pronunciation: '/a/', pronunciation_guide: 'Like "ah"', order_position: 1, created_at: new Date() },
+    { id: 11, alphabet_id: 4, letter: 'ბ', name: 'Ban', pronunciation: '/b/', pronunciation_guide: 'B sound', order_position: 2, created_at: new Date() },
+    { id: 12, alphabet_id: 4, letter: 'გ', name: 'Gan', pronunciation: '/g/', pronunciation_guide: 'G sound', order_position: 3, created_at: new Date() }
+  ]
+};
+
 type View = 'alphabets' | 'letters' | 'letter-detail' | 'practice';
 
 interface AppState {
@@ -15,6 +74,7 @@ interface AppState {
   selectedAlphabet: Alphabet | null;
   selectedLetter: Letter | null;
   currentSession: PracticeSession | null;
+  error: string | null;
 }
 
 function App() {
@@ -22,7 +82,8 @@ function App() {
     view: 'alphabets',
     selectedAlphabet: null,
     selectedLetter: null,
-    currentSession: null
+    currentSession: null,
+    error: null
   });
 
   const [alphabets, setAlphabets] = useState<Alphabet[]>([]);
@@ -33,103 +94,103 @@ function App() {
   const [practiceStats, setPracticeStats] = useState({ correct: 0, total: 0 });
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fallback data for demonstration when backend returns empty arrays
-  const fallbackAlphabets: Alphabet[] = [
-    {
-      id: 1,
-      type: 'french' as AlphabetType,
-      name: 'French Alphabet',
-      description: 'The standard French alphabet with 26 letters',
-      total_letters: 26,
-      created_at: new Date()
-    },
-    {
-      id: 2,
-      type: 'german' as AlphabetType,
-      name: 'German Alphabet',
-      description: 'German alphabet including umlauts and ß',
-      total_letters: 30,
-      created_at: new Date()
-    },
-    {
-      id: 3,
-      type: 'hebrew' as AlphabetType,
-      name: 'Hebrew Alphabet',
-      description: 'The Hebrew alphabet with 22 letters',
-      total_letters: 22,
-      created_at: new Date()
-    },
-    {
-      id: 4,
-      type: 'georgian' as AlphabetType,
-      name: 'Georgian Alphabet',
-      description: 'The Georgian Mkhedruli script with 33 letters',
-      total_letters: 33,
-      created_at: new Date()
-    }
-  ];
-
-  const fallbackLetters: Record<number, Letter[]> = {
-    1: [
-      { id: 1, alphabet_id: 1, letter: 'A', name: 'A', pronunciation: '/a/', pronunciation_guide: 'Like "ah"', order_position: 1, created_at: new Date() },
-      { id: 2, alphabet_id: 1, letter: 'B', name: 'Bé', pronunciation: '/be/', pronunciation_guide: 'Like "bay"', order_position: 2, created_at: new Date() },
-      { id: 3, alphabet_id: 1, letter: 'C', name: 'Cé', pronunciation: '/se/', pronunciation_guide: 'Like "say"', order_position: 3, created_at: new Date() }
-    ],
-    2: [
-      { id: 4, alphabet_id: 2, letter: 'A', name: 'A', pronunciation: '/aː/', pronunciation_guide: 'Long "ah"', order_position: 1, created_at: new Date() },
-      { id: 5, alphabet_id: 2, letter: 'Ä', name: 'Ä', pronunciation: '/ɛː/', pronunciation_guide: 'Like "air"', order_position: 2, created_at: new Date() },
-      { id: 6, alphabet_id: 2, letter: 'B', name: 'Be', pronunciation: '/beː/', pronunciation_guide: 'Like "bay"', order_position: 3, created_at: new Date() }
-    ],
-    3: [
-      { id: 7, alphabet_id: 3, letter: 'א', name: 'Aleph', pronunciation: 'silent', pronunciation_guide: 'Silent letter', order_position: 1, created_at: new Date() },
-      { id: 8, alphabet_id: 3, letter: 'ב', name: 'Bet', pronunciation: '/b/ or /v/', pronunciation_guide: 'B or V sound', order_position: 2, created_at: new Date() },
-      { id: 9, alphabet_id: 3, letter: 'ג', name: 'Gimel', pronunciation: '/g/', pronunciation_guide: 'G sound', order_position: 3, created_at: new Date() }
-    ],
-    4: [
-      { id: 10, alphabet_id: 4, letter: 'ა', name: 'An', pronunciation: '/a/', pronunciation_guide: 'Like "ah"', order_position: 1, created_at: new Date() },
-      { id: 11, alphabet_id: 4, letter: 'ბ', name: 'Ban', pronunciation: '/b/', pronunciation_guide: 'B sound', order_position: 2, created_at: new Date() },
-      { id: 12, alphabet_id: 4, letter: 'გ', name: 'Gan', pronunciation: '/g/', pronunciation_guide: 'G sound', order_position: 3, created_at: new Date() }
-    ]
+  // Timeout wrapper for tRPC queries
+  const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number = 5000): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out')), timeoutMs)
+      )
+    ]);
   };
 
   const loadAlphabets = useCallback(async () => {
     try {
       setIsLoading(true);
-      const result = await trpc.getAlphabets.query();
-      setAlphabets(result.length > 0 ? result : fallbackAlphabets);
+      setAppState(prev => ({ ...prev, error: null }));
+      
+      const result = await withTimeout(trpc.getAlphabets.query());
+      if (result.length > 0) {
+        setAlphabets(result);
+      }
     } catch (error) {
       console.error('Failed to load alphabets:', error);
-      setAlphabets(fallbackAlphabets);
+      const errorMessage = error instanceof Error && error.message === 'Request timed out'
+        ? 'Request timed out. Please check your internet connection or try again later.'
+        : 'Failed to load data. Please check your internet connection or try again later.';
+      
+      setAppState(prev => ({ ...prev, error: errorMessage }));
+      // Keep fallback data, don't reset it
     } finally {
       setIsLoading(false);
     }
-  }, [fallbackAlphabets]);
+  }, []);
+
+  // Initialize with fallback data immediately to prevent endless loading
+  useEffect(() => {
+    // Set fallback data immediately so the UI is never empty
+    setAlphabets(FALLBACK_ALPHABETS);
+    
+    // Then try to load real data
+    const loadData = async () => {
+      try {
+        setIsLoading(true);
+        setAppState(prev => ({ ...prev, error: null }));
+        
+        const result = await withTimeout(trpc.getAlphabets.query());
+        if (result.length > 0) {
+          setAlphabets(result);
+        }
+      } catch (error) {
+        console.error('Failed to load alphabets:', error);
+        const errorMessage = error instanceof Error && error.message === 'Request timed out'
+          ? 'Request timed out. Please check your internet connection or try again later.'
+          : 'Failed to load data. Please check your internet connection or try again later.';
+        
+        setAppState(prev => ({ ...prev, error: errorMessage }));
+        // Keep fallback data
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadData();
+  }, []);
 
   const loadLetters = useCallback(async (alphabetId: number) => {
     try {
       setIsLoading(true);
-      const result = await trpc.getLettersByAlphabet.query({ alphabet_id: alphabetId });
-      const lettersData = result.length > 0 ? result : fallbackLetters[alphabetId] || [];
+      setAppState(prev => ({ ...prev, error: null }));
+      
+      const result = await withTimeout(trpc.getLettersByAlphabet.query({ alphabet_id: alphabetId }));
+      const lettersData = result.length > 0 ? result : FALLBACK_LETTERS[alphabetId] || [];
       setLetters(lettersData);
     } catch (error) {
       console.error('Failed to load letters:', error);
-      setLetters(fallbackLetters[alphabetId] || []);
+      const errorMessage = error instanceof Error && error.message === 'Request timed out'
+        ? 'Request timed out. Please check your internet connection or try again later.'
+        : 'Failed to load letters. Please check your internet connection or try again later.';
+      
+      setAppState(prev => ({ ...prev, error: errorMessage }));
+      setLetters(FALLBACK_LETTERS[alphabetId] || []);
     } finally {
       setIsLoading(false);
     }
-  }, [fallbackLetters]);
+  }, []);
 
   const startPractice = useCallback(async (alphabet: Alphabet) => {
     try {
       setIsLoading(true);
-      const session = await trpc.createPracticeSession.mutate({
+      setAppState(prev => ({ ...prev, error: null }));
+      
+      const session = await withTimeout(trpc.createPracticeSession.mutate({
         alphabet_id: alphabet.id,
         session_type: 'flashcard',
         total_cards: 10
-      });
+      }));
       
-      const randomLetters = await trpc.getRandomLetters.query({ alphabet_id: alphabet.id });
-      const practiceData = randomLetters.length > 0 ? randomLetters : fallbackLetters[alphabet.id]?.slice(0, 3) || [];
+      const randomLetters = await withTimeout(trpc.getRandomLetters.query({ alphabet_id: alphabet.id }));
+      const practiceData = randomLetters.length > 0 ? randomLetters : FALLBACK_LETTERS[alphabet.id]?.slice(0, 3) || [];
       
       setPracticeLetters(practiceData);
       setAppState(prev => ({ ...prev, view: 'practice', currentSession: session }));
@@ -138,14 +199,27 @@ function App() {
       setPracticeStats({ correct: 0, total: 0 });
     } catch (error) {
       console.error('Failed to start practice:', error);
+      const errorMessage = error instanceof Error && error.message === 'Request timed out'
+        ? 'Request timed out. Please check your internet connection or try again later.'
+        : 'Failed to start practice session. Please check your internet connection or try again later.';
+      
+      setAppState(prev => ({ ...prev, error: errorMessage }));
+      
+      // Fallback to demo practice with available letters
+      const practiceData = FALLBACK_LETTERS[alphabet.id]?.slice(0, 3) || [];
+      if (practiceData.length > 0) {
+        setPracticeLetters(practiceData);
+        setAppState(prev => ({ ...prev, view: 'practice', currentSession: null }));
+        setCurrentPracticeIndex(0);
+        setShowAnswer(false);
+        setPracticeStats({ correct: 0, total: 0 });
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [fallbackLetters]);
+  }, []);
 
-  useEffect(() => {
-    loadAlphabets();
-  }, [loadAlphabets]);
+
 
   const selectAlphabet = (alphabet: Alphabet) => {
     setAppState(prev => ({ ...prev, selectedAlphabet: alphabet, view: 'letters' }));
@@ -158,13 +232,21 @@ function App() {
 
   const goBack = () => {
     if (appState.view === 'letter-detail') {
-      setAppState(prev => ({ ...prev, view: 'letters', selectedLetter: null }));
+      setAppState(prev => ({ ...prev, view: 'letters', selectedLetter: null, error: null }));
     } else if (appState.view === 'letters') {
-      setAppState(prev => ({ ...prev, view: 'alphabets', selectedAlphabet: null }));
+      setAppState(prev => ({ ...prev, view: 'alphabets', selectedAlphabet: null, error: null }));
       setLetters([]);
     } else if (appState.view === 'practice') {
-      setAppState(prev => ({ ...prev, view: 'letters', currentSession: null }));
+      setAppState(prev => ({ ...prev, view: 'letters', currentSession: null, error: null }));
       setPracticeLetters([]);
+    }
+  };
+
+  const retryDataLoad = () => {
+    if (appState.view === 'alphabets') {
+      loadAlphabets();
+    } else if (appState.view === 'letters' && appState.selectedAlphabet) {
+      loadLetters(appState.selectedAlphabet.id);
     }
   };
 
@@ -198,7 +280,7 @@ function App() {
     return icons[type] || '📝';
   };
 
-  if (isLoading && (alphabets.length === 0 || letters.length === 0)) {
+  if (isLoading && appState.view === 'alphabets' && alphabets.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 flex items-center justify-center">
         <div className="text-center">
@@ -232,10 +314,37 @@ function App() {
           </div>
         </div>
 
+        {/* Error Message */}
+        {appState.error && (
+          <Card className="mb-6 border-red-200 bg-red-50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <X className="h-5 w-5 text-red-600" />
+                  <p className="text-red-800">{appState.error}</p>
+                </div>
+                <Button 
+                  onClick={retryDataLoad}
+                  variant="outline" 
+                  size="sm"
+                  className="text-red-600 border-red-300 hover:bg-red-100"
+                >
+                  Try Again
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Alphabet Selection */}
         {appState.view === 'alphabets' && (
           <div>
             <p className="text-gray-600 mb-6">Choose an alphabet to start learning</p>
+            {appState.error && alphabets.length > 0 && (
+              <p className="text-amber-600 text-sm mb-4 bg-amber-50 p-3 rounded-lg">
+                ⚠️ Showing fallback data due to connection issues. Some features may be limited.
+              </p>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {alphabets.map((alphabet: Alphabet) => (
                 <Card 
@@ -258,9 +367,16 @@ function App() {
                 </Card>
               ))}
             </div>
-            {alphabets.length === 0 && (
+            {alphabets.length === 0 && !isLoading && (
               <div className="text-center py-12">
-                <p className="text-gray-500">No alphabets available. Please check the backend connection.</p>
+                <p className="text-gray-500">No alphabets available.</p>
+                <Button 
+                  onClick={retryDataLoad}
+                  variant="outline" 
+                  className="mt-4"
+                >
+                  Retry Loading
+                </Button>
               </div>
             )}
           </div>
@@ -271,18 +387,27 @@ function App() {
           <div>
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h2 className="text-2xl font-semibold text-gray-900">Letters</h2>
+                <h2 className="text-2xl font-semibold text-gray-900">
+                  Letters
+                  {isLoading && <span className="ml-2 text-sm text-gray-500">(Loading...)</span>}
+                </h2>
                 <p className="text-gray-600">Tap any letter to learn more</p>
               </div>
               <Button 
                 onClick={() => startPractice(appState.selectedAlphabet!)}
                 className="bg-indigo-600 hover:bg-indigo-700"
-                disabled={letters.length === 0}
+                disabled={letters.length === 0 || isLoading}
               >
                 <Play className="h-4 w-4 mr-2" />
                 Practice
               </Button>
             </div>
+            
+            {appState.error && letters.length > 0 && (
+              <p className="text-amber-600 text-sm mb-4 bg-amber-50 p-3 rounded-lg">
+                ⚠️ Showing fallback data due to connection issues. Some features may be limited.
+              </p>
+            )}
             
             {letters.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -306,11 +431,18 @@ function App() {
                   </Card>
                 ))}
               </div>
-            ) : (
+            ) : !isLoading ? (
               <div className="text-center py-12">
-                <p className="text-gray-500">No letters available for this alphabet. Please check the backend connection.</p>
+                <p className="text-gray-500">No letters available for this alphabet.</p>
+                <Button 
+                  onClick={retryDataLoad}
+                  variant="outline" 
+                  className="mt-4"
+                >
+                  Retry Loading
+                </Button>
               </div>
-            )}
+            ) : null}
           </div>
         )}
 
@@ -352,6 +484,12 @@ function App() {
         {/* Practice Mode */}
         {appState.view === 'practice' && practiceLetters.length > 0 && (
           <div className="max-w-2xl mx-auto">
+            {appState.error && (
+              <p className="text-amber-600 text-sm mb-4 bg-amber-50 p-3 rounded-lg">
+                ⚠️ Using fallback practice data due to connection issues.
+              </p>
+            )}
+            
             <div className="mb-6">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-gray-600">
@@ -422,9 +560,16 @@ function App() {
           </div>
         )}
 
-        {appState.view === 'practice' && practiceLetters.length === 0 && (
+        {appState.view === 'practice' && practiceLetters.length === 0 && !isLoading && (
           <div className="text-center py-12">
-            <p className="text-gray-500">No practice letters available. Please check the backend connection.</p>
+            <p className="text-gray-500">No practice letters available.</p>
+            <Button 
+              onClick={goBack}
+              variant="outline" 
+              className="mt-4"
+            >
+              Go Back
+            </Button>
           </div>
         )}
       </div>
